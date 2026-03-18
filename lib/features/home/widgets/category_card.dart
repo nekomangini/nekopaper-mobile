@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../data/models/category_model.dart';
 import '../../../core/utils/github_helper.dart';
@@ -56,8 +57,14 @@ class CategoryCard extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: Image.network(
-                  GithubHelper.getRawUrl(category.imagePath),
+                child: CachedNetworkImage(
+                  imageUrl: GithubHelper.getRawUrl(category.imagePath),
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFFABD2F),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                   fit: BoxFit.cover,
                   width: double.infinity,
                 ),

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:typed_data';
 import 'dart:io';
 
@@ -52,15 +53,13 @@ class WallpaperDetailsScreen extends StatelessWidget {
               width: double.infinity,
               height: MediaQuery.of(context).size.height * 0.4,
               color: Colors.black,
-              child: Image.network(
-                imageUrl,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFFABD2F)),
+                ),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
                 fit: BoxFit.contain,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFFABD2F)),
-                  );
-                },
               ),
             ),
 
