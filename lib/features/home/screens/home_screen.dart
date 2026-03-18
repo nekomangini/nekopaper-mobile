@@ -42,8 +42,8 @@ class HomeScreen extends StatelessWidget {
       imagePath: 'assets/environment/environment_005.webp',
     ),
     CategoryModel(
-      name: 'Game',
-      route: 'game',
+      name: 'Games',
+      route: 'games',
       imagePath: 'assets/games/games_008.webp',
     ),
     CategoryModel(
