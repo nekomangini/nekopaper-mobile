@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
@@ -41,44 +42,41 @@ class _GalleryScreenState extends State<GalleryScreen> {
         final Map<String, dynamic> data = json.decode(response.body);
         final List<dynamic> wallpaperList = data['wallpapers'];
 
-        // Inside your setState logic in _fetchWallpapers
-        setState(() {
-          if (kDebugMode) {
-            print(
-              "DEBUG: Checking Category: '${widget.category.name.toLowerCase()}'",
-            );
-          }
+        // 1. Process data OUTSIDE setState to keep UI thread snappy
+        final filteredWallpapers = wallpaperList
+            .map((item) => WallpaperModel.fromJson(item))
+            .where((wp) {
+              return wp.category.trim().toLowerCase() ==
+                  widget.category.name.trim().toLowerCase();
+            })
+            .toList();
 
-          allWallpapers = wallpaperList
-              .map((json) {
-                var model = WallpaperModel.fromJson(json);
-                // Log the first few to see what the JSON actually contains
-                if (kDebugMode) {
-                  print(
-                    "DEBUG: JSON Item Category: '${model.category.toLowerCase()}'",
-                  );
-                }
-                return model;
-              })
-              .where((wp) {
-                return wp.category.trim().toLowerCase() ==
-                    widget.category.name.trim().toLowerCase();
-              })
-              .toList();
+        // 2. Log high-level summary only
+        if (kDebugMode) {
+          print(
+            "DEBUG: Category '${widget.category.name}' -> Found ${filteredWallpapers.length} matches.",
+          );
+        }
 
-          if (kDebugMode) {
-            print("DEBUG: Found ${allWallpapers.length} matches.");
-          }
-          isLoading = false;
-        });
+        // 3. Only update state with the final result
+        if (mounted) {
+          setState(() {
+            allWallpapers = filteredWallpapers;
+            isLoading = false;
+          });
+        }
       } else {
-        throw Exception("Failed to load wallpapers");
+        throw Exception(
+          "Failed to load wallpapers (Status: ${response.statusCode})",
+        );
       }
     } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = e.toString();
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -226,8 +224,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
             children: [
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(
-                  GithubHelper.getRawUrl(wp.imagePath),
+                child: CachedNetworkImage(
+                  imageUrl: GithubHelper.getRawUrl(wp.imagePath),
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFFABD2F)),
+                  ),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                   fit: BoxFit.cover,
                   width: double.infinity,
                 ),
