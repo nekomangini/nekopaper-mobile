@@ -8,16 +8,27 @@ import 'package:share_plus/share_plus.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 
-import '../../../data/models/wallpaper_model.dart';
-import '../../../core/utils/github_helper.dart';
+import 'package:nekopaper_mobile/data/models/wallpaper_model.dart';
+import 'package:nekopaper_mobile/core/utils/github_helper.dart';
+import 'package:nekopaper_mobile/main.dart'; // for unityAdsReady
 
-class WallpaperDetailsScreen extends StatelessWidget {
+class WallpaperDetailsScreen extends StatefulWidget {
   final WallpaperModel wallpaper;
   const WallpaperDetailsScreen({super.key, required this.wallpaper});
 
+  @override
+  State<WallpaperDetailsScreen> createState() => _WallpaperDetailsScreenState();
+}
+
+class _WallpaperDetailsScreenState extends State<WallpaperDetailsScreen> {
+  // ✅ Unity Ads placement ID — must match exactly in Unity dashboard
+  static const String _placementId = 'Interstitial_Android';
+  bool _isAdLoaded = false;
+
   String get cleanWallpaperName {
-    return wallpaper.title
+    return widget.wallpaper.title
         .replaceAll(RegExp(r'\.[^/.]+$'), "")
         .replaceAll(RegExp(r'[_-]+'), " ")
         .replaceAll(RegExp(r'\s\d+$'), "")
@@ -26,8 +37,115 @@ class WallpaperDetailsScreen extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    if (unityAdsReady.value) {
+      // ✅ Small delay to let Unity Ads fully settle after init
+      Future.delayed(const Duration(milliseconds: 500), _loadAd);
+    } else {
+      unityAdsReady.addListener(_onSdkReady);
+    }
+  }
+
+  void _onSdkReady() {
+    if (unityAdsReady.value) {
+      unityAdsReady.removeListener(_onSdkReady);
+      Future.delayed(const Duration(milliseconds: 500), _loadAd);
+    }
+  }
+
+  @override
+  void dispose() {
+    unityAdsReady.removeListener(_onSdkReady);
+    super.dispose();
+  }
+
+  void _loadAd() {
+    UnityAds.load(
+      placementId: _placementId,
+      onComplete: (placementId) {
+        debugPrint('Ad loaded ✅: $placementId');
+        if (mounted) setState(() => _isAdLoaded = true);
+      },
+      onFailed: (placementId, error, message) {
+        debugPrint('Ad load failed: $message');
+        if (mounted) setState(() => _isAdLoaded = false);
+      },
+    );
+  }
+
+  Future<void> _showAd() async {
+    if (!_isAdLoaded) {
+      debugPrint('Ad not ready, skipping');
+      _loadAd(); // queue for next time
+      return;
+    }
+
+    setState(() => _isAdLoaded = false);
+
+    UnityAds.showVideoAd(
+      placementId: _placementId,
+      onStart: (placementId) => debugPrint('Ad started'),
+      onSkipped: (placementId) {
+        debugPrint('Ad skipped');
+        _loadAd(); // preload next
+      },
+      onComplete: (placementId) {
+        debugPrint('Ad completed ✅');
+        _loadAd(); // preload next
+      },
+      onFailed: (placementId, error, message) {
+        debugPrint('Ad show failed: $message');
+        _loadAd(); // try again
+      },
+    );
+  }
+
+  // ─── Download logic ───────────────────────────────────────────────────────
+
+  Future<void> _downloadImage(String imageUrl) async {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Downloading to gallery...")));
+
+    try {
+      var response = await Dio().get(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      final result = await ImageGallerySaverPlus.saveImage(
+        Uint8List.fromList(response.data),
+        quality: 100,
+        name: widget.wallpaper.slug,
+      );
+
+      if (!mounted) return;
+
+      if (result != null && result['isSuccess'] == true) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Saved to Gallery! ✅")));
+
+        // ✅ Show ad after successful download
+        await _showAd();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+  // ─── Build ────────────────────────────────────────────────────────────────
+
+  @override
   Widget build(BuildContext context) {
-    final String imageUrl = GithubHelper.getRawUrl(wallpaper.imagePath);
+    final String imageUrl = GithubHelper.getRawUrl(widget.wallpaper.imagePath);
 
     return Scaffold(
       backgroundColor: const Color(0xFF282828),
@@ -38,9 +156,8 @@ class WallpaperDetailsScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Color(0xFFFABD2F)),
           onPressed: () => Navigator.pop(context),
         ),
-        // TODO:
         title: Text(
-          "Back to ${wallpaper.category}",
+          "Back to ${widget.wallpaper.category}",
           style: const TextStyle(color: Color(0xFFFABD2F), fontSize: 14),
         ),
       ),
@@ -48,7 +165,6 @@ class WallpaperDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Preview
             Container(
               width: double.infinity,
               height: MediaQuery.of(context).size.height * 0.4,
@@ -69,7 +185,7 @@ class WallpaperDetailsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    wallpaper.title,
+                    widget.wallpaper.title,
                     style: const TextStyle(
                       color: Color(0xFFFABD2F),
                       fontSize: 32,
@@ -82,7 +198,7 @@ class WallpaperDetailsScreen extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     children: [
-                      _buildTag(wallpaper.category, isPrimary: true),
+                      _buildTag(widget.wallpaper.category, isPrimary: true),
                       _buildTag("ネコpaper"),
                       _buildTag(cleanWallpaperName),
                     ],
@@ -96,45 +212,7 @@ class WallpaperDetailsScreen extends StatelessWidget {
                     icon: Icons.download_rounded,
                     color: const Color(0xFFFABD2F),
                     textColor: Colors.black,
-                    onPressed: () async {
-                      // 1. Show the initial snackbar immediately (no await yet, so context is safe)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Downloading to gallery..."),
-                        ),
-                      );
-
-                      try {
-                        // 2. Perform the async network call
-                        var response = await Dio().get(
-                          imageUrl,
-                          options: Options(responseType: ResponseType.bytes),
-                        );
-
-                        // 3. Perform the async save call
-                        final result = await ImageGallerySaverPlus.saveImage(
-                          Uint8List.fromList(response.data),
-                          quality: 100,
-                          name: wallpaper.slug,
-                        );
-
-                        // GUARD: Check if the user is still on this screen before using context
-                        if (!context.mounted) return;
-
-                        if (result != null && result['isSuccess'] == true) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Saved to Gallery!")),
-                          );
-                        }
-                      } catch (e) {
-                        // GUARD: Check again here because the catch block is also after an await
-                        if (!context.mounted) return;
-
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text("Error: $e")));
-                      }
-                    },
+                    onPressed: () => _downloadImage(imageUrl),
                   ),
                   const SizedBox(height: 12),
 
@@ -157,19 +235,18 @@ class WallpaperDetailsScreen extends StatelessWidget {
 
                         final tempDir = await getTemporaryDirectory();
                         final tempFile = File(
-                          '${tempDir.path}/${wallpaper.slug}.jpg',
+                          '${tempDir.path}/${widget.wallpaper.slug}.jpg',
                         );
                         await tempFile.writeAsBytes(response.data);
 
                         if (!context.mounted) return;
 
-                        // ✅ Modern share_plus API
                         await SharePlus.instance.share(
                           ShareParams(
-                            text:
-                                "Check out this wallpaper: ${wallpaper.title}",
                             files: [XFile(tempFile.path)],
-                            subject: wallpaper.title,
+                            text:
+                                "Check out this wallpaper: ${widget.wallpaper.title}",
+                            subject: widget.wallpaper.title,
                           ),
                         );
                       } catch (e) {
@@ -190,14 +267,21 @@ class WallpaperDetailsScreen extends StatelessWidget {
                     color: const Color(0xFF29ABE0),
                     textColor: Colors.white,
                     onPressed: () async {
-                      final Uri url = Uri.parse(
-                        'https://ko-fi.com/nekomangini',
-                      );
-                      if (!await launchUrl(
-                        url,
-                        mode: LaunchMode.externalApplication,
-                      )) {
-                        throw Exception('Could not launch $url');
+                      try {
+                        final Uri url = Uri.parse(
+                          'https://ko-fi.com/nekomangini',
+                        );
+                        if (!await launchUrl(
+                          url,
+                          mode: LaunchMode.externalApplication,
+                        )) {
+                          throw Exception('Could not launch $url');
+                        }
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text("Error: $e")));
                       }
                     },
                   ),
@@ -233,7 +317,7 @@ class WallpaperDetailsScreen extends StatelessWidget {
     required IconData icon,
     required Color color,
     required Color textColor,
-    required VoidCallback onPressed,
+    required Future<void> Function() onPressed,
     bool border = false,
   }) {
     return SizedBox(

@@ -1,5 +1,5 @@
-name: nekopaper_test_003
-description: "Test app 03"
+name: nekopaper_mobile
+description: "nekopaper mobile version"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -41,6 +41,7 @@ dependencies:
   image_gallery_saver_plus: ^4.0.1
   path_provider: ^2.1.5
   cached_network_image: ^3.4.1
+  unity_ads_plugin: ^0.3.30
 
 dev_dependencies:
   flutter_test:

@@ -3,11 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:nekopaper_test_003/features/home/screens/wallpaper_details_screen.dart';
+import 'package:nekopaper_mobile/features//home/screens/wallpaper_details_screen.dart';
 
-import '../../../data/models/category_model.dart';
-import '../../../data/models/wallpaper_model.dart';
-import '../../../core/utils/github_helper.dart';
+import 'package:nekopaper_mobile/data/models/category_model.dart';
+import 'package:nekopaper_mobile/data/models/wallpaper_model.dart';
+import 'package:nekopaper_mobile/core/utils/github_helper.dart';
 
 class GalleryScreen extends StatefulWidget {
   final CategoryModel category;
