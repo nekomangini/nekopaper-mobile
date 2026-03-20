@@ -1,8 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import '../../../data/models/category_model.dart';
-import '../../../core/utils/github_helper.dart';
-import '../../../features/home/screens/gallery_screen.dart';
+import 'package:nekopaper_mobile/data/models/category_model.dart';
+import 'package:nekopaper_mobile/core/utils/github_helper.dart';
+import 'package:nekopaper_mobile/features/home/screens/gallery_screen.dart';
 
 class CategoryCard extends StatelessWidget {
   final CategoryModel category;
@@ -60,9 +60,7 @@ class CategoryCard extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: GithubHelper.getRawUrl(category.imagePath),
                   placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFFABD2F),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFFFABD2F)),
                   ),
                   errorWidget: (context, url, error) => const Icon(Icons.error),
                   fit: BoxFit.cover,

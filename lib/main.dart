@@ -1,8 +1,38 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-// 1. Import your new HomeScreen
+import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'features/home/screens/home_screen.dart';
 
-void main() {
+final unityAdsReady = ValueNotifier<bool>(false);
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Use a Completer to truly wait for Unity Ads init callback
+  final completer = Completer<void>();
+
+  UnityAds.init(
+    gameId: '6069844',
+    testMode: true,
+    onComplete: () {
+      debugPrint('Unity Ads Initialized ✅');
+      unityAdsReady.value = true;
+      if (!completer.isCompleted) completer.complete();
+    },
+    onFailed: (error, message) {
+      debugPrint('Unity Ads Init Failed: $error $message');
+      if (!completer.isCompleted) completer.complete(); // don't hang the app
+    },
+  );
+
+  // ✅ Actually wait for the callback before starting the app
+  await completer.future.timeout(
+    const Duration(seconds: 10),
+    onTimeout: () {
+      debugPrint('Unity Ads init timed out, continuing anyway');
+    },
+  );
+
   runApp(const MyApp());
 }
 
@@ -11,20 +41,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      // title: 'NekoPaper Mobile',
-      // TODO:
-      debugShowCheckedModeBanner: true,
-      // 2. Setting up a theme that matches your Vue site's "dark & cyan" vibe
-      // TODO:
-      // theme: ThemeData(
-      //   brightness: Brightness.dark,
-      //   useMaterial3: true,
-      //   colorSchemeSeed: Colors.cyanAccent,
-      //   scaffoldBackgroundColor: const Color(0xFF0D0D0D), // Background-dark
-      // ),
-      // 3. Point 'home' to your new HomeScreen widget
-      home: HomeScreen(),
-    );
+    return MaterialApp(debugShowCheckedModeBanner: false, home: HomeScreen());
   }
 }

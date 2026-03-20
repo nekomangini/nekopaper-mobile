@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/category_card.dart';
-import '../../../data/models/category_model.dart';
+import 'package:nekopaper_mobile/data/models/category_model.dart';
 
 class HomeScreen extends StatelessWidget {
   HomeScreen({super.key});
