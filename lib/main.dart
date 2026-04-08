@@ -1,22 +1,24 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import flutter_dotenv
 import 'features/home/screens/home_screen.dart';
 
 final unityAdsReady = ValueNotifier<bool>(false);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   // ✅ Use a Completer to truly wait for Unity Ads init callback
   final completer = Completer<void>();
 
   UnityAds.init(
-    gameId: '6069844',
-    testMode: true,
+    gameId: dotenv.env['GAME_ID']!,
+    testMode: false,
     onComplete: () {
       debugPrint('Unity Ads Initialized ✅');
-      unityAdsReady.value = true;
+      unityAdsReady.value = false;
       if (!completer.isCompleted) completer.complete();
     },
     onFailed: (error, message) {
